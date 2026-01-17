@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guitar Master Tool: Thaats, Alankars & Theory</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .wood-texture {
+            background-color: #3e2723;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(25,39%,15%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 100%, hsla(25,39%,15%,1) 0, transparent 50%),
+                repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 2px, transparent 2px, transparent 8px);
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+        }
+        
+        .active-note {
+            transition: all 0.1s ease-in-out;
+            transform: scale(1.4) !important;
+            box-shadow: 0 0 25px #fbbf24 !important;
+            z-index: 60 !important;
+            border-color: white !important;
+        }
+        /* Color Classes */
+        .note-shuddh { background-color: #f59e0b !important; color: black !important; border-color: #fde68a !important; }
+        .note-komal { background-color: #ec4899 !important; color: white !important; border-color: #fbcfe8 !important; }
+        .note-tivra { background-color: #06b6d4 !important; color: white !important; border-color: #a5f3fc !important; }
+        .note-unison { background-color: #16a34a !important; color: white !important; }
+        .note-octave { background-color: #2563eb !important; color: white !important; }
+        
+        /* Loading Spinner */
+        .loader { border: 2px solid #f3f3f3; border-top: 2px solid #f59e0b; border-radius: 50%; width: 12px; height: 12px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* String Vibration Animation */
+        @keyframes vibrate {
+            0% { transform: translateY(0); }
+            25% { transform: translateY(1px); }
+            50% { transform: translateY(-1px); }
+            75% { transform: translateY(0.5px); }
+            100% { transform: translateY(0); }
+        }
+        .string-vibrating {
+            animation: vibrate 0.1s ease-in-out infinite;
+        }
+
+        /* REALISTIC STRINGS CSS */
+        .string-wound {
+            background: 
+                repeating-linear-gradient(
+                    90deg, 
+                    rgba(0,0,0,0.4) 0px, 
+                    rgba(0,0,0,0.4) 1px, 
+                    transparent 1px, 
+                    transparent 3px
+                ),
+                linear-gradient(
+                    to bottom,
+                    #5d4037 0%,
+                    #d7ccc8 50%,
+                    #5d4037 100%
+                );
+            border-radius: 2px;
+            box-shadow: 0 4px 4px rgba(0,0,0,0.6);
+        }
+
+        .string-plain {
+            background: linear-gradient(
+                to bottom,
+                #9ca3af 0%,
+                #f3f4f6 40%,
+                #f3f4f6 60%,
+                #9ca3af 100%
+            );
+            border-radius: 50%;
+            box-shadow: 0 2px 3px rgba(0,0,0,0.4);
+            opacity: 0.9;
+        }
+        
+        /* Shape Diagram Grid */
+        .shape-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 2px;
+            width: 100%;
+            height: 60px;
+        }
+        .shape-cell {
+            border: 1px solid #374151;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-white min-h-screen font-sans selection:bg-amber-500 selection:text-black">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const westernNotes = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#'];
+        
+        // --- DATA: THAATS ---
+        const thaats = [
+            { id: 1, name: "Bilawal (Major)", desc: "All Shuddh (Natural) Notes", intervals: [0, 2, 4, 5, 7, 9, 11, 12] },
+            { id: 2, name: "Kalyan", desc: "Uses Tivra Ma (Ḿ)", intervals: [0, 2, 4, 6, 7, 9, 11, 12] },
+            { id: 3, name: "Khamaj", desc: "Uses Komal Ni (n̲)", intervals: [0, 2, 4, 5, 7, 9, 10, 12] },
+            { id: 4, name: "Bhairav", desc: "Uses Komal Re (r̲) & Komal Dha (d̲)", intervals: [0, 1, 4, 5, 7, 8, 11, 12] },
+            { id: 5, name: "Poorvi", desc: "Uses Komal Re (r̲), Tivra Ma (Ḿ), Komal Dha (d̲)", intervals: [0, 1, 4, 6, 7, 8, 11, 12] },
+            { id: 6, name: "Marwa", desc: "Uses Komal Re (r̲) & Tivra Ma (Ḿ)", intervals: [0, 1, 4, 6, 7, 9, 11, 12] },
+            { id: 7, name: "Kafi", desc: "Uses Komal Ga (g̲) & Komal Ni (n̲)", intervals: [0, 2, 3, 5, 7, 9, 10, 12] },
+            { id: 8, name: "Asavari", desc: "Uses Komal Ga (g̲), Komal Dha (d̲), Komal Ni (n̲)", intervals: [0, 2, 3, 5, 7, 8, 10, 12] },
+            { id: 9, name: "Bhairavi", desc: "All Komal: Re(r̲), Ga(g̲), Dha(d̲), Ni(n̲)", intervals: [0, 1, 3, 5, 7, 8, 10, 12] },
+            { id: 10, name: "Todi", desc: "Komal Re(r̲), Ga(g̲), Dha(d̲) + Tivra Ma(Ḿ)", intervals: [0, 1, 3, 6, 7, 8, 11, 12] },
+        ];
+
+        const alankars = [
+            { id: 1, name: "1. Saral (Straight)", pattern: [1,2,3,4,5,6,7,8, 8,7,6,5,4,3,2,1] },
+            { id: 2, name: "2. Double (Sa Sa...)", pattern: [1,1, 2,2, 3,3, 4,4, 5,5, 6,6, 7,7, 8,8, 8,8, 7,7, 6,6, 5,5, 4,4, 3,3, 2,2, 1,1] },
+            { id: 3, name: "3. Triplets (Sa Re Ga...)", pattern: [1,2,3, 2,3,4, 3,4,5, 4,5,6, 5,6,7, 6,7,8, 8,7,6, 7,6,5, 6,5,4, 5,4,3, 4,3,2, 3,2,1] },
+            { id: 4, name: "4. Quadruplets (Sa Re Ga Ma...)", pattern: [1,2,3,4, 2,3,4,5, 3,4,5,6, 4,5,6,7, 5,6,7,8, 8,7,6,5, 7,6,5,4, 6,5,4,3, 5,4,3,2, 4,3,2,1] },
+            { id: 5, name: "5. Zig Zag (Sa Re Sa Re Ga...)", pattern: [1,2,1,2,3, 2,3,2,3,4, 3,4,3,4,5, 4,5,4,5,6, 5,6,5,6,7, 6,7,6,7,8] },
+            { id: 6, name: "6. Swing (Sa Re Ga Sa...)", pattern: [1,2,3,1,2,3,4, 2,3,4,2,3,4,5, 3,4,5,3,4,5,6] },
+            { id: 7, name: "7. Skip One (Sa Ga...)", pattern: [1,3, 2,4, 3,5, 4,6, 5,7, 6,8, 8,6, 7,5, 6,4, 5,3, 4,2, 3,1] },
+            { id: 8, name: "8. Skip Two (Sa Ma...)", pattern: [1,4, 2,5, 3,6, 4,7, 5,8, 8,5, 7,4, 6,3, 5,2, 4,1] },
+            { id: 9, name: "9. Pyramid (Sa, Sa Re...)", pattern: [1, 1,2,1, 1,2,3,2,1, 1,2,3,4,3,2,1] },
+            { id: 10, name: "10. Mandra Saptak (Low)", pattern: [1, -1, 1, 1, -1, -2, -1, 1] }
+        ];
+
+        const sargamMapping = {
+            0: { label: 'Sa', type: 'S' },
+            1: { label: 'r̲', type: 'K' },
+            2: { label: 'Re', type: 'S' },
+            3: { label: 'g̲', type: 'K' },
+            4: { label: 'Ga', type: 'S' },
+            5: { label: 'Ma', type: 'S' },
+            6: { label: 'Ḿ', type: 'T' },
+            7: { label: 'Pa', type: 'S' },
+            8: { label: 'd̲', type: 'K' },
+            9: { label: 'Dha', type: 'S' },
+            10: { label: 'n̲', type: 'K' },
+            11: { label: 'Ni', type: 'S' },
+            12: { label: "Sa'", type: 'S' }
+        };
+
+        const mnemonics = { 1: "High E", 2: "B", 3: "G", 4: "D", 5: "A", 6: "Low E" };
+
+        const strings = [
+            { id: 1, openNote: 'E', thickness: 2, type: 'plain', baseFreq: 329.63, openPitch: 64 }, 
+            { id: 2, openNote: 'B', thickness: 3, type: 'plain', baseFreq: 246.94, openPitch: 59 },
+            { id: 3, openNote: 'G', thickness: 4, type: 'plain', baseFreq: 196.00, openPitch: 55 }, 
+            { id: 4, openNote: 'D', thickness: 5, type: 'wound', baseFreq: 146.83, openPitch: 50 }, 
+            { id: 5, openNote: 'A', thickness: 6, type: 'wound', baseFreq: 110.00, openPitch: 45 }, 
+            { id: 6, openNote: 'E', thickness: 8, type: 'wound', baseFreq: 82.41,  openPitch: 40 }, 
+        ];
+
+        const getNoteAtFret = (openNote, fret) => {
+            const startIndex = westernNotes.indexOf(openNote);
+            const noteIndex = (startIndex + fret) % 12;
+            return westernNotes[noteIndex];
+        };
+
+        const getAbsolutePitch = (stringId, fret) => {
+            const stringOffsets = { 6: 0, 5: 5, 4: 10, 3: 15, 2: 19, 1: 24 };
+            return stringOffsets[stringId] + fret;
+        };
+
+        // --- REAL AUDIO ENGINE ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const sampleCache = {};
+        let activeSources = [];
+
+        const midiToFileName = (midi) => {
+            const notes = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+            const octave = Math.floor(midi / 12) - 1;
+            const noteName = notes[midi % 12];
+            return `${noteName}${octave}`; 
+        };
+
+        const loadSample = async (midiNumber, updateStatus = null) => {
+            if (sampleCache[midiNumber]) return sampleCache[midiNumber];
+            const noteName = midiToFileName(midiNumber);
+            const url = `https://raw.githubusercontent.com/gleitz/midi-js-soundfonts/gh-pages/FluidR3_GM/acoustic_guitar_nylon-mp3/${noteName}.mp3`;
+            try {
+                if (updateStatus) updateStatus(`Loading ${noteName}...`);
+                const response = await fetch(url);
+                const arrayBuffer = await response.arrayBuffer();
+                const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                sampleCache[midiNumber] = audioBuffer;
+                return audioBuffer;
+            } catch (e) {
+                console.warn("Failed to load sample:", noteName);
+                return null;
+            }
+        };
+
+        const playRealSample = async (midiNumber) => {
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            let buffer = sampleCache[midiNumber];
+            if (!buffer) buffer = await loadSample(midiNumber);
+            if (buffer) {
+                const src = audioCtx.createBufferSource();
+                src.buffer = buffer;
+                const gain = audioCtx.createGain();
+                gain.gain.value = 0.8; 
+                src.connect(gain);
+                gain.connect(audioCtx.destination);
+                src.start();
+                activeSources.push(src);
+                if(activeSources.length > 20) activeSources.shift(); 
+            }
+        };
+
+        // Helper: Convert step number to label
+        const getNoteLabel = (step) => {
+            const labels = { 1:'S', 2:'R', 3:'G', 4:'M', 5:'P', 6:'D', 7:'N', 8:"S'", '-1':"Ṇ", '-2':"Ḍ" };
+            return labels[step] || "?";
+        };
+
+        // Helper: Visual Patterns Component
+        const PatternVisualizer = () => {
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                    <div className="bg-gray-800 p-2 rounded border border-gray-700">
+                        <div className="text-xs text-blue-400 font-bold mb-1 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span> OCTAVE SHAPE
+                        </div>
+                        <div className="flex gap-2 items-center justify-center">
+                            {/* Simple Visual representation of shape */}
+                            <svg width="100" height="60" viewBox="0 0 100 60" className="bg-gray-900 rounded">
+                                {/* Strings */}
+                                <line x1="0" y1="10" x2="100" y2="10" stroke="#555" strokeWidth="1" />
+                                <line x1="0" y1="30" x2="100" y2="30" stroke="#555" strokeWidth="1" />
+                                <line x1="0" y1="50" x2="100" y2="50" stroke="#555" strokeWidth="1" />
+                                {/* Frets */}
+                                <line x1="20" y1="0" x2="20" y2="60" stroke="#333" strokeWidth="2" />
+                                <line x1="50" y1="0" x2="50" y2="60" stroke="#333" strokeWidth="2" />
+                                <line x1="80" y1="0" x2="80" y2="60" stroke="#333" strokeWidth="2" />
+                                {/* Dots */}
+                                <circle cx="20" cy="10" r="6" fill="#fbbf24" /> {/* Root */}
+                                <circle cx="80" cy="50" r="6" fill="#2563eb" /> {/* Octave */}
+                                {/* Arrow */}
+                                <path d="M 25 15 Q 50 45 75 48" stroke="#666" strokeWidth="1" fill="none" strokeDasharray="2,2"/>
+                            </svg>
+                            <div className="text-[10px] text-gray-400 leading-tight">
+                                <div>1. Down 2 Strings</div>
+                                <div>2. Right 2 Frets</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gray-800 p-2 rounded border border-gray-700">
+                        <div className="text-xs text-green-400 font-bold mb-1 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span> UNISON SHAPE
+                        </div>
+                        <div className="flex gap-2 items-center justify-center">
+                            <svg width="120" height="40" viewBox="0 0 120 40" className="bg-gray-900 rounded">
+                                {/* Strings */}
+                                <line x1="0" y1="10" x2="120" y2="10" stroke="#555" strokeWidth="1" />
+                                <line x1="0" y1="30" x2="120" y2="30" stroke="#555" strokeWidth="1" />
+                                {/* Frets */}
+                                <line x1="20" y1="0" x2="20" y2="40" stroke="#333" strokeWidth="2" />
+                                <line x1="40" y1="0" x2="40" y2="40" stroke="#333" strokeWidth="2" />
+                                <line x1="60" y1="0" x2="60" y2="40" stroke="#333" strokeWidth="2" />
+                                <line x1="80" y1="0" x2="80" y2="40" stroke="#333" strokeWidth="2" />
+                                <line x1="100" y1="0" x2="100" y2="40" stroke="#333" strokeWidth="2" />
+                                {/* Dots */}
+                                <circle cx="20" cy="10" r="5" fill="#fbbf24" /> {/* Root */}
+                                <circle cx="100" cy="30" r="5" fill="#16a34a" /> {/* Unison */}
+                                <text x="60" y="20" fill="#555" fontSize="8" textAnchor="middle">5 Frets</text>
+                            </svg>
+                            <div className="text-[10px] text-gray-400 leading-tight">
+                                <div>1. Down 1 String</div>
+                                <div>2. Right 5 Frets</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        function App() {
+            const [mode, setMode] = React.useState('explore'); 
+            const [isFlipped, setIsFlipped] = React.useState(true); 
+            const [selected, setSelected] = React.useState(null); 
+            
+            const [rootNote, setRootNote] = React.useState({ note: 'A', stringId: 6, fret: 5, absPitch: 5 }); 
+            const [isPlaying, setIsPlaying] = React.useState(false);
+            const [playbackIndex, setPlaybackIndex] = React.useState(-1);
+            const [isViewingPattern, setIsViewingPattern] = React.useState(true); 
+            const [loadingStatus, setLoadingStatus] = React.useState("Audio Ready");
+            const [activeStringId, setActiveStringId] = React.useState(null); 
+
+            const [currentAlankarId, setCurrentAlankarId] = React.useState(1);
+            const [currentThaatId, setCurrentThaatId] = React.useState(1);
+
+            const frets = Array.from({ length: 13 }, (_, i) => i);
+            const displayFrets = isFlipped ? [...frets].reverse() : frets;
+
+            // --- SMART BOX LOGIC ---
+            const getBoxNote = (targetAbsPitch) => {
+                let bestLoc = null;
+                let minScore = 10000;
+                strings.forEach(str => {
+                    const strOffset = getAbsolutePitch(str.id, 0);
+                    const fret = targetAbsPitch - strOffset;
+                    if (fret >= 0 && fret <= 15) {
+                        const fretDist = fret - rootNote.fret;
+                        let penalty = 0;
+                        if (fret < rootNote.fret - 1) penalty += 50; 
+                        if (fret > rootNote.fret + 4) penalty += 50; 
+                        penalty += Math.abs(fretDist) * 2; 
+                        const stringDiff = str.id - rootNote.stringId;
+                        if (stringDiff > 0) penalty += 100;
+                        penalty += Math.abs(stringDiff) * 5; 
+                        if (penalty < minScore) {
+                            minScore = penalty;
+                            bestLoc = { stringId: str.id, fret, note: getNoteAtFret(str.openNote, fret), openPitch: str.openPitch };
+                        }
+                    }
+                });
+                return bestLoc;
+            };
+
+            // --- AUDIO PRELOADER ---
+            React.useEffect(() => {
+                const preloadNotes = async () => {
+                    if (mode === 'explore') return;
+                    let sequence = [];
+                    if (mode === 'saregama') {
+                        const pattern = alankars.find(a => a.id === currentAlankarId).pattern;
+                        const majorIntervals = { 1:0, 2:2, 3:4, 4:5, 5:7, 6:9, 7:11, 8:12, '-1': -1, '-2': -3 };
+                        const uniqueSteps = [...new Set(pattern)];
+                        sequence = uniqueSteps.map(step => rootNote.absPitch + majorIntervals[step]);
+                    } 
+                    else if (mode === 'thaat') {
+                        const intervals = thaats.find(t => t.id === currentThaatId).intervals;
+                        sequence = intervals.map(i => rootNote.absPitch + i);
+                    }
+                    setLoadingStatus("Loading Samples...");
+                    const loadPromises = sequence.map(pitch => {
+                        const loc = getBoxNote(pitch);
+                        if(loc) {
+                            const midi = loc.openPitch + loc.fret;
+                            return loadSample(midi);
+                        }
+                        return Promise.resolve();
+                    });
+                    await Promise.all(loadPromises);
+                    setLoadingStatus("Audio Ready");
+                };
+                const timeout = setTimeout(preloadNotes, 500);
+                return () => clearTimeout(timeout);
+            }, [mode, currentAlankarId, currentThaatId, rootNote]);
+
+
+            // --- PLAYBACK ENGINE ---
+            React.useEffect(() => {
+                let interval;
+                if (isPlaying) {
+                    setIsViewingPattern(false); 
+                    
+                    let sequence = [];
+                    if (mode === 'saregama') {
+                        const pattern = alankars.find(a => a.id === currentAlankarId).pattern;
+                        const majorIntervals = { 1:0, 2:2, 3:4, 4:5, 5:7, 6:9, 7:11, 8:12, '-1': -1, '-2': -3 };
+                        sequence = pattern.map(step => rootNote.absPitch + majorIntervals[step]);
+                    } 
+                    else if (mode === 'thaat') {
+                        const intervals = thaats.find(t => t.id === currentThaatId).intervals;
+                        const ascending = intervals.map(i => rootNote.absPitch + i);
+                        const descending = [...ascending].reverse();
+                        sequence = [...ascending, ...descending.slice(1)];
+                    }
+
+                    interval = setInterval(() => {
+                        setPlaybackIndex(prev => {
+                            const next = prev + 1;
+                            if (next >= sequence.length) {
+                                setIsPlaying(false);
+                                setIsViewingPattern(true); 
+                                setActiveStringId(null);
+                                return -1;
+                            }
+                            const targetPitch = sequence[next];
+                            const loc = getBoxNote(targetPitch);
+                            if (loc) {
+                                const midi = loc.openPitch + loc.fret;
+                                playRealSample(midi);
+                                setActiveStringId(loc.stringId); 
+                            }
+                            return next;
+                        });
+                    }, 600);
+                } else {
+                    setActiveStringId(null);
+                }
+                return () => clearInterval(interval);
+            }, [isPlaying, currentAlankarId, currentThaatId, rootNote, mode]);
+
+            // --- CLICK HANDLER ---
+            const handleNoteClick = (note, stringObj, fret) => {
+                const absPitch = getAbsolutePitch(stringObj.id, fret);
+                const midi = stringObj.openPitch + fret;
+                playRealSample(midi);
+                
+                setActiveStringId(stringObj.id);
+                setTimeout(() => setActiveStringId(null), 300);
+
+                if (mode === 'saregama' || mode === 'thaat') {
+                    setRootNote({ note, stringId: stringObj.id, fret, absPitch });
+                } else {
+                    setSelected({ note, stringId: stringObj.id, fret, absPitch });
+                }
+            };
+
+            // --- HELPER LOGIC ---
+            const getRelationship = (currentStringId, currentFret, currentNote) => {
+                if (mode !== 'explore' || !selected) return null;
+                if (selected.stringId === currentStringId && selected.fret === currentFret) return 'root';
+                const currentAbsPitch = getAbsolutePitch(currentStringId, currentFret);
+                if (currentNote === selected.note) {
+                    if (currentAbsPitch === selected.absPitch) return 'unison'; 
+                    return 'octave'; 
+                }
+                return null;
+            };
+
+            const isPlaybackActive = (stringId, fret) => {
+                if (!isPlaying || playbackIndex === -1) return false;
+                let targetPitch = null;
+                if (mode === 'saregama') {
+                    const pattern = alankars.find(a => a.id === currentAlankarId).pattern;
+                    const majorIntervals = { 1:0, 2:2, 3:4, 4:5, 5:7, 6:9, 7:11, 8:12, '-1': -1, '-2': -3 };
+                    targetPitch = rootNote.absPitch + majorIntervals[pattern[playbackIndex]];
+                } else if (mode === 'thaat') {
+                    const intervals = thaats.find(t => t.id === currentThaatId).intervals;
+                    const ascending = intervals.map(i => rootNote.absPitch + i);
+                    const descending = [...ascending].reverse();
+                    const sequence = [...ascending, ...descending.slice(1)];
+                    targetPitch = sequence[playbackIndex];
+                }
+                if (targetPitch === null) return false;
+                const loc = getBoxNote(targetPitch);
+                return loc && loc.stringId === stringId && loc.fret === fret;
+            };
+
+            const isPatternNote = (stringId, fret) => {
+                if (!isViewingPattern) return false;
+                let pitches = [];
+                if (mode === 'saregama') {
+                    const pattern = alankars.find(a => a.id === currentAlankarId).pattern;
+                    const majorIntervals = { 1:0, 2:2, 3:4, 4:5, 5:7, 6:9, 7:11, 8:12, '-1': -1, '-2': -3 };
+                    pitches = pattern.map(step => rootNote.absPitch + majorIntervals[step]);
+                } else if (mode === 'thaat') {
+                    const intervals = thaats.find(t => t.id === currentThaatId).intervals;
+                    pitches = intervals.map(i => rootNote.absPitch + i);
+                }
+                return pitches.some(p => {
+                    const loc = getBoxNote(p);
+                    return loc && loc.stringId === stringId && loc.fret === fret;
+                });
+            };
+
+            const changeSelection = (type, id) => {
+                setPlaybackIndex(-1);
+                setIsPlaying(false);
+                setIsViewingPattern(true); 
+                if(type === 'alankar') setCurrentAlankarId(id);
+                if(type === 'thaat') setCurrentThaatId(id);
+            };
+
+            const togglePlay = () => {
+                if(isPlaying) {
+                    setIsPlaying(false);
+                    setPlaybackIndex(-1);
+                } else {
+                    setPlaybackIndex(-1); 
+                    setIsPlaying(true);
+                }
+            };
+
+            const renderKaraoke = () => {
+                if (mode === 'explore') return null;
+                
+                let sequence = [];
+                if (mode === 'saregama') {
+                    const pattern = alankars.find(a => a.id === currentAlankarId).pattern;
+                    return (
+                        <div className="flex flex-wrap justify-center gap-2 max-w-4xl px-4 py-2 bg-gray-900/50 rounded-lg border border-gray-800">
+                            {pattern.map((step, idx) => (
+                                <span key={idx} className={`font-mono text-sm px-1 rounded transition-all ${idx === playbackIndex ? 'bg-amber-500 text-black font-bold scale-125 shadow-lg' : 'text-gray-500'}`}>
+                                    {getNoteLabel(step)}
+                                </span>
+                            ))}
+                        </div>
+                    );
+                } 
+                else if (mode === 'thaat') {
+                    return <div className="text-gray-400 text-sm">Playing Thaat Scale Ascending & Descending</div>;
+                }
+            };
+
+            return (
+                <div className="flex flex-col items-center p-2 md:p-6 pb-24 min-h-screen max-w-7xl mx-auto bg-gray-950">
+                    
+                    {/* HEADER */}
+                    <div className="w-full flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-gray-800 pb-4">
+                        <h1 className="text-2xl font-bold text-amber-500">Guitar Master Tool</h1>
+                        
+                        <div className="flex bg-gray-800 rounded-lg p-1 gap-1">
+                            <button onClick={() => { setMode('explore'); setIsPlaying(false); setIsViewingPattern(false); }} className={`px-3 py-2 rounded text-sm font-bold ${mode === 'explore' ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'}`}>Explorer</button>
+                            <button onClick={() => { setMode('saregama'); setIsPlaying(false); setIsViewingPattern(true); }} className={`px-3 py-2 rounded text-sm font-bold ${mode === 'saregama' ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'}`}>Saregama</button>
+                            <button onClick={() => { setMode('thaat'); setIsPlaying(false); setIsViewingPattern(true); }} className={`px-3 py-2 rounded text-sm font-bold ${mode === 'thaat' ? 'bg-violet-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>10 Thaats</button>
+                        </div>
+
+                        <button onClick={() => setIsFlipped(!isFlipped)} className="px-3 py-1 bg-gray-800 rounded-full text-xs font-bold border border-gray-600">
+                             {isFlipped ? "Head Right" : "Head Left"}
+                        </button>
+                    </div>
+
+                    {/* CONTROLS */}
+                    {(mode === 'saregama' || mode === 'thaat') && (
+                        <div className="w-full bg-gray-900 border border-gray-700 rounded-xl p-4 mb-6 shadow-xl animate-fade-in grid grid-cols-1 md:grid-cols-3 gap-4">
+                            
+                            {/* 1. Root */}
+                            <div className="bg-black/40 p-3 rounded-lg border border-gray-700 border-l-4 border-l-amber-500">
+                                <label className="text-xs text-gray-400 uppercase font-bold block mb-2">1. Root (Sa)</label>
+                                <div className="text-3xl font-bold text-white mb-1">{rootNote.note}</div>
+                                <div className="text-xs text-amber-400 italic">Tap any note</div>
+                            </div>
+
+                            {/* 2. Selection */}
+                            <div className="bg-black/40 p-3 rounded-lg border border-gray-700">
+                                <label className="text-xs text-gray-400 uppercase font-bold block mb-2">2. Select {mode === 'thaat' ? 'Scale' : 'Exercise'}</label>
+                                <select 
+                                    value={mode === 'thaat' ? currentThaatId : currentAlankarId}
+                                    onChange={(e) => changeSelection(mode === 'thaat' ? 'thaat' : 'alankar', Number(e.target.value))}
+                                    className="w-full bg-gray-800 text-white text-sm p-2 rounded border border-gray-600 focus:border-amber-500 outline-none"
+                                >
+                                    {mode === 'thaat' 
+                                        ? thaats.map(t => <option key={t.id} value={t.id}>{t.name}</option>)
+                                        : alankars.map(a => <option key={a.id} value={a.id}>{a.name}</option>)
+                                    }
+                                </select>
+                            </div>
+
+                            {/* 3. Action */}
+                            <div className="bg-black/40 p-3 rounded-lg border border-gray-700 flex flex-col justify-between">
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="text-xs text-gray-400 uppercase font-bold">3. Practice</label>
+                                </div>
+                                <div className="flex gap-2 h-full">
+                                    <button onClick={togglePlay} className={`flex-1 rounded font-bold text-sm flex items-center justify-center gap-2 ${isPlaying ? 'bg-red-600' : 'bg-green-600 hover:bg-green-500'}`}>
+                                        {isPlaying ? "Stop" : "▶ Play"}
+                                    </button>
+                                    <button onClick={() => { setIsViewingPattern(!isViewingPattern); setIsPlaying(false); }} className={`flex-1 rounded font-bold text-sm ${isViewingPattern ? 'bg-blue-600 text-white shadow-inner' : 'bg-gray-700 text-gray-400'}`}>
+                                        {isViewingPattern ? "Pattern On" : "Show Pattern"}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* FRETBOARD */}
+                    <div className="w-full overflow-x-auto no-scrollbar border-y-8 border-gray-800 bg-gray-900 shadow-2xl rounded-xl relative mb-6">
+                        <div className="flex justify-between px-4 py-1 text-[10px] font-bold text-gray-600 uppercase tracking-widest bg-black">
+                            <span>{isFlipped ? "Body (High)" : "Nut (Low)"}</span><span>{isFlipped ? "Nut (Low)" : "Body (High)"}</span>
+                        </div>
+                        <div className="wood-texture relative min-w-[900px] py-6 px-4">
+                            {[...strings].reverse().map((string) => (
+                                <div key={string.id} className="relative flex items-center h-14">
+                                    <div className="absolute -left-32 w-36 text-right pr-4 text-xs font-mono text-amber-500/50 hidden md:block">
+                                        <div className="flex flex-col items-end">
+                                            <span>String {string.id}</span>
+                                            <span className="text-[10px] text-gray-400">{string.openNote}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* VISUAL REALISTIC STRING (Plain vs Wound) */}
+                                    <div 
+                                        className={`absolute w-full z-0 origin-center ${string.type === 'wound' ? 'string-wound' : 'string-plain'} ${activeStringId === string.id ? 'string-vibrating' : ''}`} 
+                                        style={{ height: `${string.thickness * 1.5}px` }} 
+                                    ></div>
+                                    
+                                    <div className="flex w-full justify-between z-10 relative">
+                                        {displayFrets.map((fret) => {
+                                            const note = getNoteAtFret(string.openNote, fret);
+                                            const absPitch = getAbsolutePitch(string.id, fret);
+                                            
+                                            // --- VISUAL LOGIC ---
+                                            let style = "bg-gray-800 text-gray-300 scale-90 opacity-90"; // EXPLORER DEFAULT VISIBLE
+                                            let content = note;
+                                            let ring = "";
+
+                                            if (mode === 'explore') {
+                                                const rel = getRelationship(string.id, fret, note);
+                                                if (rel === 'root') {
+                                                    style = "bg-amber-500 text-black font-bold scale-110 shadow-[0_0_15px_rgba(245,158,11,0.6)] z-20";
+                                                } else if (rel === 'unison') {
+                                                    style = "note-unison font-bold scale-100 ring-2 ring-green-400 z-10";
+                                                    content = note; // Show Name
+                                                } else if (rel === 'octave') {
+                                                    style = "note-octave font-bold scale-100 ring-2 ring-blue-400 z-10";
+                                                    content = note; // Show Name
+                                                }
+                                            }
+                                            else {
+                                                const diff = absPitch - rootNote.absPitch;
+                                                let norm = diff % 12; 
+                                                if (norm < 0) norm += 12;
+                                                const sargamData = sargamMapping[norm];
+                                                const sargamLabel = sargamData ? sargamData.label : "";
+                                                let typeClass = "note-shuddh"; 
+                                                if (sargamData && sargamData.type === 'K') typeClass = "note-komal";
+                                                if (sargamData && sargamData.type === 'T') typeClass = "note-tivra";
+
+                                                if (string.id === rootNote.stringId && fret === rootNote.fret) {
+                                                    style = "bg-amber-500 text-black font-bold scale-110 ring-4 ring-amber-200 z-30";
+                                                    content = "Sa";
+                                                } else if (isPlaybackActive(string.id, fret)) {
+                                                    style = "active-note";
+                                                    content = sargamLabel;
+                                                } else if (isPatternNote(string.id, fret)) {
+                                                    style = `${typeClass} font-bold opacity-70`; 
+                                                    content = sargamLabel;
+                                                } else if (sargamLabel && mode === 'thaat') {
+                                                     style = "bg-gray-900 text-gray-700 scale-50 opacity-20";
+                                                     content = "";
+                                                } else {
+                                                    style = "bg-gray-900 text-gray-700 scale-50 opacity-20";
+                                                    content = "";
+                                                }
+                                            }
+
+                                            return (
+                                                <div key={fret} className={`flex-1 flex justify-center items-center h-14 relative ${fret===0?"bg-black/20 border-r-8 border-gray-300": "border-r-2 border-gray-500"}`} style={{minWidth: fret===0?'50px':'70px'}}>
+                                                    <button onClick={() => handleNoteClick(note, string, fret)} className={`w-9 h-9 rounded-full flex items-center justify-center text-xs transition-all ${style}`}>
+                                                        {content}
+                                                    </button>
+                                                    {ring && <div className={`absolute w-9 h-9 rounded-full border-2 border-amber-400 ${ring}`}></div>}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex justify-between bg-black text-gray-500 py-1 px-4 min-w-[900px]">
+                            {displayFrets.map(f => <div key={f} className="flex-1 text-center text-xs font-mono" style={{minWidth: f===0?'50px':'70px'}}>{f}</div>)}
+                        </div>
+                    </div>
+
+                     {/* INFO & KARAOKE BOX */}
+                     <div className="w-full bg-gray-900 border border-gray-700 rounded-xl p-4 shadow-xl">
+                        {mode === 'saregama' && (
+                            <div className="text-center mb-4">
+                                <h3 className="text-amber-500 font-bold mb-2 uppercase text-xs tracking-wider">Pattern Sequence</h3>
+                                {renderKaraoke()}
+                            </div>
+                        )}
+                        
+                        {mode === 'thaat' && (
+                            <div className="text-gray-300 text-sm">
+                                <h3 className="font-bold text-violet-400 mb-1 text-lg">
+                                    Thaat: {thaats.find(t=>t.id===currentThaatId).name}
+                                </h3>
+                                <p className="mb-2 text-gray-400 italic">
+                                    {thaats.find(t=>t.id===currentThaatId).desc}
+                                </p>
+                                <div className="flex gap-4 mt-3 text-xs">
+                                    <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#f59e0b]"></span> Shuddh</div>
+                                    <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#ec4899]"></span> Komal</div>
+                                    <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#06b6d4]"></span> Tivra</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {mode === 'explore' && (
+                             <div>
+                                <div className="flex gap-4 text-xs text-gray-300 mb-2">
+                                    <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-amber-500"></span> Selected</div>
+                                    <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-600"></span> Unison (Same Pitch)</div>
+                                    <div className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-600"></span> Octave (Hi/Lo Pitch)</div>
+                                </div>
+                                <div className="border-t border-gray-700 pt-2">
+                                    <h4 className="text-sm font-bold text-gray-400 mb-2">Visual Patterns Guide</h4>
+                                    <PatternVisualizer />
+                                </div>
+                             </div>
+                        )}
+                        
+                        <div className="mt-2 text-xs text-gray-500 border-t border-gray-800 pt-2 flex justify-between items-center">
+                            <span className="flex items-center gap-2">
+                                Status: 
+                                <span className={loadingStatus === "Audio Ready" ? "text-green-500 font-bold" : "text-amber-500 font-bold flex items-center gap-2"}>
+                                    {loadingStatus !== "Audio Ready" && <div className="loader"></div>}
+                                    {loadingStatus}
+                                </span>
+                            </span>
+                            <span className="text-[10px] text-gray-600">Source: FluidR3 Nylon</span>
+                        </div>
+                     </div>
+
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
