@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guitar Master Tool: Thaats, Alankars & Theory</title>
+    <title>Guitar Master Tool: Thaats, Alankars & AI Tutor</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -31,6 +31,7 @@
         .note-tivra { background-color: #06b6d4 !important; color: white !important; border-color: #a5f3fc !important; }
         .note-unison { background-color: #16a34a !important; color: white !important; }
         .note-octave { background-color: #2563eb !important; color: white !important; }
+        .note-ai { background-color: #8b5cf6 !important; color: white !important; border-color: #c4b5fd !important; }
         
         /* Loading Spinner */
         .loader { border: 2px solid #f3f3f3; border-top: 2px solid #f59e0b; border-radius: 50%; width: 12px; height: 12px; animation: spin 1s linear infinite; }
@@ -80,21 +81,6 @@
             box-shadow: 0 2px 3px rgba(0,0,0,0.4);
             opacity: 0.9;
         }
-        
-        /* Shape Diagram Grid */
-        .shape-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 2px;
-            width: 100%;
-            height: 60px;
-        }
-        .shape-cell {
-            border: 1px solid #374151;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
     </style>
 </head>
 <body class="bg-gray-950 text-white min-h-screen font-sans selection:bg-amber-500 selection:text-black">
@@ -102,20 +88,23 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        // API KEY CONFIGURATION
+        const apiKey = ""; 
+
         const westernNotes = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#'];
         
-        // --- DATA: THAATS ---
+        // --- DATA: 10 THAATS (Verified Logic) ---
         const thaats = [
-            { id: 1, name: "Bilawal (Major)", desc: "All Shuddh (Natural) Notes", intervals: [0, 2, 4, 5, 7, 9, 11, 12] },
-            { id: 2, name: "Kalyan", desc: "Uses Tivra Ma (Ḿ)", intervals: [0, 2, 4, 6, 7, 9, 11, 12] },
-            { id: 3, name: "Khamaj", desc: "Uses Komal Ni (n̲)", intervals: [0, 2, 4, 5, 7, 9, 10, 12] },
-            { id: 4, name: "Bhairav", desc: "Uses Komal Re (r̲) & Komal Dha (d̲)", intervals: [0, 1, 4, 5, 7, 8, 11, 12] },
-            { id: 5, name: "Poorvi", desc: "Uses Komal Re (r̲), Tivra Ma (Ḿ), Komal Dha (d̲)", intervals: [0, 1, 4, 6, 7, 8, 11, 12] },
-            { id: 6, name: "Marwa", desc: "Uses Komal Re (r̲) & Tivra Ma (Ḿ)", intervals: [0, 1, 4, 6, 7, 9, 11, 12] },
-            { id: 7, name: "Kafi", desc: "Uses Komal Ga (g̲) & Komal Ni (n̲)", intervals: [0, 2, 3, 5, 7, 9, 10, 12] },
-            { id: 8, name: "Asavari", desc: "Uses Komal Ga (g̲), Komal Dha (d̲), Komal Ni (n̲)", intervals: [0, 2, 3, 5, 7, 8, 10, 12] },
-            { id: 9, name: "Bhairavi", desc: "All Komal: Re(r̲), Ga(g̲), Dha(d̲), Ni(n̲)", intervals: [0, 1, 3, 5, 7, 8, 10, 12] },
-            { id: 10, name: "Todi", desc: "Komal Re(r̲), Ga(g̲), Dha(d̲) + Tivra Ma(Ḿ)", intervals: [0, 1, 3, 6, 7, 8, 11, 12] },
+            { id: 1, name: "Bilawal (Major)", desc: "All Shuddh Notes (S R G M P D N)", intervals: [0, 2, 4, 5, 7, 9, 11, 12] },
+            { id: 2, name: "Kalyan (Lydian)", desc: "Tivra Ma (S R G M# P D N)", intervals: [0, 2, 4, 6, 7, 9, 11, 12] },
+            { id: 3, name: "Khamaj (Mixolydian)", desc: "Komal Ni (S R G M P D n)", intervals: [0, 2, 4, 5, 7, 9, 10, 12] },
+            { id: 4, name: "Bhairav", desc: "Komal Re & Dha (S r G M P d N)", intervals: [0, 1, 4, 5, 7, 8, 11, 12] },
+            { id: 5, name: "Poorvi", desc: "Komal Re, Dha & Tivra Ma (S r G M# P d N)", intervals: [0, 1, 4, 6, 7, 8, 11, 12] },
+            { id: 6, name: "Marwa", desc: "Komal Re & Tivra Ma (S r G M# P D N)", intervals: [0, 1, 4, 6, 7, 9, 11, 12] },
+            { id: 7, name: "Kafi (Dorian)", desc: "Komal Ga & Ni (S R g M P D n)", intervals: [0, 2, 3, 5, 7, 9, 10, 12] },
+            { id: 8, name: "Asavari (Natural Minor)", desc: "Komal Ga, Dha, Ni (S R g M P d n)", intervals: [0, 2, 3, 5, 7, 8, 10, 12] },
+            { id: 9, name: "Bhairavi (Phrygian)", desc: "All Komal (S r g M P d n)", intervals: [0, 1, 3, 5, 7, 8, 10, 12] },
+            { id: 10, name: "Todi", desc: "Komal r, g, d + Tivra Ma (S r g M# P d N)", intervals: [0, 1, 3, 6, 7, 8, 11, 12] },
         ];
 
         const alankars = [
@@ -230,20 +219,15 @@
                             <span className="w-2 h-2 bg-blue-500 rounded-full"></span> OCTAVE SHAPE
                         </div>
                         <div className="flex gap-2 items-center justify-center">
-                            {/* Simple Visual representation of shape */}
                             <svg width="100" height="60" viewBox="0 0 100 60" className="bg-gray-900 rounded">
-                                {/* Strings */}
                                 <line x1="0" y1="10" x2="100" y2="10" stroke="#555" strokeWidth="1" />
                                 <line x1="0" y1="30" x2="100" y2="30" stroke="#555" strokeWidth="1" />
                                 <line x1="0" y1="50" x2="100" y2="50" stroke="#555" strokeWidth="1" />
-                                {/* Frets */}
                                 <line x1="20" y1="0" x2="20" y2="60" stroke="#333" strokeWidth="2" />
                                 <line x1="50" y1="0" x2="50" y2="60" stroke="#333" strokeWidth="2" />
                                 <line x1="80" y1="0" x2="80" y2="60" stroke="#333" strokeWidth="2" />
-                                {/* Dots */}
-                                <circle cx="20" cy="10" r="6" fill="#fbbf24" /> {/* Root */}
-                                <circle cx="80" cy="50" r="6" fill="#2563eb" /> {/* Octave */}
-                                {/* Arrow */}
+                                <circle cx="20" cy="10" r="6" fill="#fbbf24" /> 
+                                <circle cx="80" cy="50" r="6" fill="#2563eb" /> 
                                 <path d="M 25 15 Q 50 45 75 48" stroke="#666" strokeWidth="1" fill="none" strokeDasharray="2,2"/>
                             </svg>
                             <div className="text-[10px] text-gray-400 leading-tight">
@@ -259,18 +243,15 @@
                         </div>
                         <div className="flex gap-2 items-center justify-center">
                             <svg width="120" height="40" viewBox="0 0 120 40" className="bg-gray-900 rounded">
-                                {/* Strings */}
                                 <line x1="0" y1="10" x2="120" y2="10" stroke="#555" strokeWidth="1" />
                                 <line x1="0" y1="30" x2="120" y2="30" stroke="#555" strokeWidth="1" />
-                                {/* Frets */}
                                 <line x1="20" y1="0" x2="20" y2="40" stroke="#333" strokeWidth="2" />
                                 <line x1="40" y1="0" x2="40" y2="40" stroke="#333" strokeWidth="2" />
                                 <line x1="60" y1="0" x2="60" y2="40" stroke="#333" strokeWidth="2" />
                                 <line x1="80" y1="0" x2="80" y2="40" stroke="#333" strokeWidth="2" />
                                 <line x1="100" y1="0" x2="100" y2="40" stroke="#333" strokeWidth="2" />
-                                {/* Dots */}
-                                <circle cx="20" cy="10" r="5" fill="#fbbf24" /> {/* Root */}
-                                <circle cx="100" cy="30" r="5" fill="#16a34a" /> {/* Unison */}
+                                <circle cx="20" cy="10" r="5" fill="#fbbf24" /> 
+                                <circle cx="100" cy="30" r="5" fill="#16a34a" /> 
                                 <text x="60" y="20" fill="#555" fontSize="8" textAnchor="middle">5 Frets</text>
                             </svg>
                             <div className="text-[10px] text-gray-400 leading-tight">
@@ -294,12 +275,120 @@
             const [isViewingPattern, setIsViewingPattern] = React.useState(true); 
             const [loadingStatus, setLoadingStatus] = React.useState("Audio Ready");
             const [activeStringId, setActiveStringId] = React.useState(null); 
+            const [tempo, setTempo] = React.useState(600); 
 
+            // Standard Modes
             const [currentAlankarId, setCurrentAlankarId] = React.useState(1);
             const [currentThaatId, setCurrentThaatId] = React.useState(1);
 
+            // AI Mode State
+            const [userApiKey, setUserApiKey] = React.useState(apiKey);
+            const [aiQuery, setAiQuery] = React.useState("");
+            const [aiSequence, setAiSequence] = React.useState([]);
+            const [aiSongDetails, setAiSongDetails] = React.useState(null);
+            const [isGenerating, setIsGenerating] = React.useState(false);
+            const [aiError, setAiError] = React.useState(null);
+
             const frets = Array.from({ length: 13 }, (_, i) => i);
             const displayFrets = isFlipped ? [...frets].reverse() : frets;
+
+            // --- AI GENERATION ---
+            const generateSong = async () => {
+                if (!userApiKey) {
+                    setAiError("Please enter a valid API Key.");
+                    return;
+                }
+                setIsGenerating(true);
+                setAiError(null);
+                setAiSequence([]); 
+                setAiSongDetails(null);
+                
+                try {
+                    const prompt = `You are an expert guitar tutor.
+                    USER REQUEST: "${aiQuery}"
+
+                    TASK: Generate a guitar tab sequence for this request.
+                    1. If it's a specific song you know, create a simplified melody line.
+                    2. If the song is unknown or obscure, generate a beautiful, playable melody in the same STYLE or MOOD (e.g. Bollywood, Romantic, Sad, Blues). Do not refuse.
+                    3. Keep it beginner-friendly (frets 0-12).
+
+                    OUTPUT FORMAT:
+                    Return ONLY a valid JSON object (no markdown, no code blocks, no extra text).
+                    { 
+                        "title": "Song Title (or 'Style of...')", 
+                        "instructions": "One short tip on finger positioning.",
+                        "sequence": [{ "string": number (1-6), "fret": number (0-15), "note": "string (e.g. C#)", "duration": 1 }] 
+                    }`;
+
+                    let modelName = 'gemini-2.5-flash-preview-09-2025';
+                    let response;
+                    
+                    const fetchWithModel = async (model) => {
+                        return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userApiKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }],
+                                generationConfig: { responseMimeType: "application/json" }
+                            })
+                        });
+                    };
+
+                    response = await fetchWithModel(modelName);
+
+                    if (!response.ok) {
+                        console.log("Preview model failed, trying standard Gemini 1.5 Flash...");
+                        modelName = 'gemini-1.5-flash';
+                        response = await fetchWithModel(modelName);
+                    }
+
+                    if (!response.ok) {
+                        const errorJson = await response.json();
+                        const errorMsg = errorJson.error?.message || "Unknown API Error";
+                        
+                        if (errorMsg.includes("expired") || errorMsg.includes("API_KEY_INVALID")) {
+                            throw new Error("Your API Key has expired or is invalid. Please get a new key.");
+                        }
+                        
+                        throw new Error(`API Error (${modelName}): ${errorMsg}`);
+                    }
+
+                    const data = await response.json();
+                    let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!rawText) throw new Error("No content generated");
+                    
+                    rawText = rawText.replace(/```json|```/g, '').trim();
+                    
+                    const result = JSON.parse(rawText);
+                    
+                    if (result.sequence && result.sequence.length > 0) {
+                        setAiSequence(result.sequence);
+                        setAiSongDetails({ title: result.title || "AI Song", instructions: result.instructions || "Follow the highlighted notes!" });
+                        
+                        setLoadingStatus("Loading AI Song...");
+                        
+                        const loadPromises = result.sequence.map(step => {
+                            if (!step.string || step.string < 1 || step.string > 6) return Promise.resolve(); 
+                            const str = strings.find(s => s.id === step.string);
+                            if (!str) return Promise.resolve(); 
+                            
+                            const midi = str.openPitch + step.fret;
+                            return loadSample(midi);
+                        });
+                        
+                        await Promise.all(loadPromises);
+                        setLoadingStatus("Audio Ready");
+                    } else {
+                        setAiError("AI generated an empty song. Try adding 'simple melody' to your request.");
+                    }
+
+                } catch (e) {
+                    console.error("AI Generation Failed:", e);
+                    setAiError(e.message);
+                } finally {
+                    setIsGenerating(false);
+                }
+            };
 
             // --- SMART BOX LOGIC ---
             const getBoxNote = (targetAbsPitch) => {
@@ -329,7 +418,7 @@
             // --- AUDIO PRELOADER ---
             React.useEffect(() => {
                 const preloadNotes = async () => {
-                    if (mode === 'explore') return;
+                    if (mode === 'explore' || mode === 'ai') return;
                     let sequence = [];
                     if (mode === 'saregama') {
                         const pattern = alankars.find(a => a.id === currentAlankarId).pattern;
@@ -365,16 +454,23 @@
                     setIsViewingPattern(false); 
                     
                     let sequence = [];
-                    if (mode === 'saregama') {
+                    if (mode === 'ai') {
+                        sequence = aiSequence;
+                    } 
+                    else if (mode === 'saregama') {
                         const pattern = alankars.find(a => a.id === currentAlankarId).pattern;
                         const majorIntervals = { 1:0, 2:2, 3:4, 4:5, 5:7, 6:9, 7:11, 8:12, '-1': -1, '-2': -3 };
-                        sequence = pattern.map(step => rootNote.absPitch + majorIntervals[step]);
+                        sequence = pattern.map(step => {
+                            const pitch = rootNote.absPitch + majorIntervals[step];
+                            return getBoxNote(pitch);
+                        });
                     } 
                     else if (mode === 'thaat') {
                         const intervals = thaats.find(t => t.id === currentThaatId).intervals;
                         const ascending = intervals.map(i => rootNote.absPitch + i);
                         const descending = [...ascending].reverse();
-                        sequence = [...ascending, ...descending.slice(1)];
+                        const rawSeq = [...ascending, ...descending.slice(1)];
+                        sequence = rawSeq.map(pitch => getBoxNote(pitch));
                     }
 
                     interval = setInterval(() => {
@@ -386,21 +482,27 @@
                                 setActiveStringId(null);
                                 return -1;
                             }
-                            const targetPitch = sequence[next];
-                            const loc = getBoxNote(targetPitch);
-                            if (loc) {
-                                const midi = loc.openPitch + loc.fret;
-                                playRealSample(midi);
-                                setActiveStringId(loc.stringId); 
+                            
+                            const step = sequence[next];
+                            if (step) {
+                                const sId = step.string || step.stringId;
+                                const fr = step.fret;
+                                const strInfo = strings.find(s => s.id === sId);
+                                
+                                if(strInfo) {
+                                    const midi = strInfo.openPitch + fr;
+                                    playRealSample(midi);
+                                    setActiveStringId(sId); 
+                                }
                             }
                             return next;
                         });
-                    }, 600);
+                    }, tempo); 
                 } else {
                     setActiveStringId(null);
                 }
                 return () => clearInterval(interval);
-            }, [isPlaying, currentAlankarId, currentThaatId, rootNote, mode]);
+            }, [isPlaying, currentAlankarId, currentThaatId, rootNote, mode, aiSequence, tempo]);
 
             // --- CLICK HANDLER ---
             const handleNoteClick = (note, stringObj, fret) => {
@@ -432,6 +534,12 @@
 
             const isPlaybackActive = (stringId, fret) => {
                 if (!isPlaying || playbackIndex === -1) return false;
+                
+                if (mode === 'ai') {
+                    const step = aiSequence[playbackIndex];
+                    return step && step.string === stringId && step.fret === fret;
+                }
+
                 let targetPitch = null;
                 if (mode === 'saregama') {
                     const pattern = alankars.find(a => a.id === currentAlankarId).pattern;
@@ -451,6 +559,11 @@
 
             const isPatternNote = (stringId, fret) => {
                 if (!isViewingPattern) return false;
+                
+                if (mode === 'ai') {
+                    return aiSequence.some(s => s.string === stringId && s.fret === fret);
+                }
+
                 let pitches = [];
                 if (mode === 'saregama') {
                     const pattern = alankars.find(a => a.id === currentAlankarId).pattern;
@@ -486,6 +599,18 @@
 
             const renderKaraoke = () => {
                 if (mode === 'explore') return null;
+                if (mode === 'ai') {
+                    if (aiSequence.length === 0) return <div className="text-gray-500 text-sm italic">Generate a song to see notes</div>;
+                    return (
+                        <div className="flex flex-wrap justify-center gap-2 max-w-4xl px-4 py-2 bg-gray-900/50 rounded-lg border border-gray-800">
+                            {aiSequence.map((step, idx) => (
+                                <span key={idx} className={`font-mono text-sm px-1 rounded transition-all ${idx === playbackIndex ? 'bg-amber-500 text-black font-bold scale-125 shadow-lg' : 'text-gray-500'}`}>
+                                    {step.note}
+                                </span>
+                            ))}
+                        </div>
+                    );
+                }
                 
                 let sequence = [];
                 if (mode === 'saregama') {
@@ -516,6 +641,7 @@
                             <button onClick={() => { setMode('explore'); setIsPlaying(false); setIsViewingPattern(false); }} className={`px-3 py-2 rounded text-sm font-bold ${mode === 'explore' ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'}`}>Explorer</button>
                             <button onClick={() => { setMode('saregama'); setIsPlaying(false); setIsViewingPattern(true); }} className={`px-3 py-2 rounded text-sm font-bold ${mode === 'saregama' ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'}`}>Saregama</button>
                             <button onClick={() => { setMode('thaat'); setIsPlaying(false); setIsViewingPattern(true); }} className={`px-3 py-2 rounded text-sm font-bold ${mode === 'thaat' ? 'bg-violet-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>10 Thaats</button>
+                            <button onClick={() => { setMode('ai'); setIsPlaying(false); setIsViewingPattern(true); }} className={`px-3 py-2 rounded text-sm font-bold flex items-center gap-1 ${mode === 'ai' ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}><span>🤖</span> AI Tutor</button>
                         </div>
 
                         <button onClick={() => setIsFlipped(!isFlipped)} className="px-3 py-1 bg-gray-800 rounded-full text-xs font-bold border border-gray-600">
@@ -523,7 +649,95 @@
                         </button>
                     </div>
 
-                    {/* CONTROLS */}
+                    {/* AI MODE CONTROLS */}
+                    {mode === 'ai' && (
+                        <div className="w-full bg-gray-900 border border-violet-900/50 rounded-xl p-4 mb-6 shadow-xl animate-fade-in">
+                            <div className="flex flex-col md:flex-row gap-4 mb-4">
+                                <div className="flex-1">
+                                    <label className="text-xs text-violet-400 font-bold uppercase mb-1 block">1. What do you want to learn?</label>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={aiQuery}
+                                            onChange={(e) => setAiQuery(e.target.value)}
+                                            placeholder="e.g., Happy Birthday, Mario Theme, Blues Lick in E"
+                                            className="w-full bg-black/40 border border-gray-700 rounded px-3 py-2 text-white focus:border-violet-500 outline-none"
+                                        />
+                                        <button 
+                                            onClick={generateSong}
+                                            disabled={isGenerating}
+                                            className="px-6 py-2 bg-violet-600 hover:bg-violet-700 rounded font-bold text-white whitespace-nowrap disabled:opacity-50"
+                                        >
+                                            {isGenerating ? "Thinking..." : "Generate Lesson"}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="w-full md:w-1/3">
+                                    <label className="text-xs text-gray-500 font-bold uppercase mb-1 block">API Key (Required)</label>
+                                    <input 
+                                        type="password" 
+                                        value={userApiKey}
+                                        onChange={(e) => setUserApiKey(e.target.value)}
+                                        placeholder="Paste Gemini API Key here"
+                                        className="w-full bg-black/40 border border-gray-700 rounded px-3 py-2 text-gray-400 text-xs focus:border-gray-500 outline-none"
+                                    />
+                                    <div className="text-[10px] text-gray-500 mt-1">
+                                        Need a key? <a href="https://aistudio.google.com/" target="_blank" className="text-violet-400 hover:underline">Get it here</a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {aiError && (
+                                <div className="text-red-400 text-sm mb-4 bg-red-900/20 p-2 rounded border border-red-900/50">
+                                    <strong>Error:</strong> {aiError}
+                                    {aiError.includes("expired") && (
+                                        <div className="mt-1 text-xs">
+                                            Tip: Your key has expired. Please visit <a href="https://aistudio.google.com/" target="_blank" className="underline font-bold">Google AI Studio</a> to generate a new free key.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* INSTRUCTIONS BOX */}
+                            {aiSongDetails && (
+                                <div className="bg-violet-900/20 border border-violet-800 p-3 rounded mb-4 animate-fade-in">
+                                    <h3 className="font-bold text-violet-300 text-lg flex items-center gap-2">
+                                        🎵 {aiSongDetails.title}
+                                    </h3>
+                                    <p className="text-gray-300 text-sm mt-1">
+                                        <span className="text-violet-400 font-bold">Tutor Tip: </span>
+                                        {aiSongDetails.instructions}
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between items-center bg-black/20 p-2 rounded">
+                                <div className="text-sm text-gray-300">
+                                    {aiSequence.length > 0 ? `Loaded: ${aiSequence.length} notes ready to play.` : "Enter a song above to start."}
+                                </div>
+                                <div className="flex gap-4 items-center">
+                                    {/* SPEED SLIDER FOR AI MODE */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-400 font-bold uppercase">Speed</span>
+                                        <input 
+                                            type="range" 
+                                            min="200" 
+                                            max="1000" 
+                                            step="50"
+                                            value={1200 - tempo} // Invert so right is fast
+                                            onChange={(e) => setTempo(1200 - Number(e.target.value))}
+                                            className="w-24 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-violet-500"
+                                        />
+                                    </div>
+                                    <button onClick={togglePlay} disabled={aiSequence.length === 0} className={`px-4 py-1 rounded font-bold text-sm ${isPlaying ? 'bg-red-600' : 'bg-green-600 disabled:opacity-50 disabled:bg-gray-700'}`}>
+                                        {isPlaying ? "Stop" : "▶ Play Lesson"}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* STANDARD CONTROLS */}
                     {(mode === 'saregama' || mode === 'thaat') && (
                         <div className="w-full bg-gray-900 border border-gray-700 rounded-xl p-4 mb-6 shadow-xl animate-fade-in grid grid-cols-1 md:grid-cols-3 gap-4">
                             
@@ -554,6 +768,22 @@
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="text-xs text-gray-400 uppercase font-bold">3. Practice</label>
                                 </div>
+                                
+                                {/* SPEED SLIDER FOR STANDARD MODE */}
+                                <div className="flex items-center gap-2 mb-2 px-1">
+                                    <span className="text-[10px] text-gray-500 font-bold uppercase w-8">Fast</span>
+                                    <input 
+                                        type="range" 
+                                        min="200" 
+                                        max="1000" 
+                                        step="50"
+                                        value={1200 - tempo} 
+                                        onChange={(e) => setTempo(1200 - Number(e.target.value))}
+                                        className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                                    />
+                                    <span className="text-[10px] text-gray-500 font-bold uppercase w-8 text-right">Slow</span>
+                                </div>
+
                                 <div className="flex gap-2 h-full">
                                     <button onClick={togglePlay} className={`flex-1 rounded font-bold text-sm flex items-center justify-center gap-2 ${isPlaying ? 'bg-red-600' : 'bg-green-600 hover:bg-green-500'}`}>
                                         {isPlaying ? "Stop" : "▶ Play"}
@@ -609,7 +839,20 @@
                                                     content = note; // Show Name
                                                 }
                                             }
+                                            else if (mode === 'ai') {
+                                                if (isPlaybackActive(string.id, fret)) {
+                                                    style = "active-note bg-violet-500 text-white";
+                                                    content = note;
+                                                } else if (isPatternNote(string.id, fret)) {
+                                                    style = "note-ai opacity-80 scale-100";
+                                                    content = note;
+                                                } else {
+                                                    style = "bg-gray-900 text-gray-700 scale-50 opacity-20";
+                                                    content = "";
+                                                }
+                                            }
                                             else {
+                                                // Standard Logic
                                                 const diff = absPitch - rootNote.absPitch;
                                                 let norm = diff % 12; 
                                                 if (norm < 0) norm += 12;
@@ -657,7 +900,7 @@
 
                      {/* INFO & KARAOKE BOX */}
                      <div className="w-full bg-gray-900 border border-gray-700 rounded-xl p-4 shadow-xl">
-                        {mode === 'saregama' && (
+                        {(mode === 'saregama' || mode === 'ai') && (
                             <div className="text-center mb-4">
                                 <h3 className="text-amber-500 font-bold mb-2 uppercase text-xs tracking-wider">Pattern Sequence</h3>
                                 {renderKaraoke()}
